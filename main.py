@@ -13,12 +13,23 @@ class KNNApp:
     def __init__(self, master):
         self.master = master
         self.master.title("KNN Classifier Tool")
-        self.master.geometry("400x300")
+        self.master.geometry("400x400")
+        self.center_window()
 
         self.file_path = tk.StringVar()
         self.test_size = tk.DoubleVar(value=0.2)
+        self.distance_metric = tk.StringVar(value="euclidean")
+        self.k_value = tk.IntVar(value=5)
 
         self.create_widgets()
+
+    def center_window(self):
+        self.master.update_idletasks()
+        width = self.master.winfo_width()
+        height = self.master.winfo_height()
+        x = (self.master.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.master.winfo_screenheight() // 2) - (height // 2)
+        self.master.geometry('{}x{}+{}+{}'.format(width, height, x, y))
 
     def create_widgets(self):
         ttk.Button(self.master, text="Select CSV File", command=self.load_data).pack(pady=10)
@@ -28,6 +39,13 @@ class KNNApp:
                   variable=self.test_size, command=self.update_test_size).pack()
         self.test_size_label = ttk.Label(self.master, text="0.2")
         self.test_size_label.pack()
+
+        ttk.Label(self.master, text="Distance Metric:").pack()
+        ttk.Combobox(self.master, textvariable=self.distance_metric, 
+                     values=["euclidean", "manhattan"]).pack()
+
+        ttk.Label(self.master, text="K Value:").pack()
+        ttk.Spinbox(self.master, from_=1, to=20, textvariable=self.k_value).pack()
 
         ttk.Button(self.master, text="Run KNN", command=self.run_knn).pack(pady=10)
 
@@ -57,7 +75,7 @@ class KNNApp:
         X_train_scaled = scaler.fit_transform(X_train)
         X_test_scaled = scaler.transform(X_test)
         
-        knn = KNeighborsClassifier(n_neighbors=5, metric='euclidean')
+        knn = KNeighborsClassifier(n_neighbors=self.k_value.get(), metric=self.distance_metric.get())
         knn.fit(X_train_scaled, y_train)
         y_pred = knn.predict(X_test_scaled)
         
@@ -66,6 +84,8 @@ class KNNApp:
         recall = recall_score(y_test, y_pred, average='weighted')
         f1 = f1_score(y_test, y_pred, average='weighted')
         
+        print(f"Distance Metric: {self.distance_metric.get()}")
+        print(f"K Value: {self.k_value.get()}")
         print(f"Accuracy: {accuracy:.4f}")
         print(f"Precision: {precision:.4f}")
         print(f"Recall: {recall:.4f}")
@@ -74,7 +94,7 @@ class KNNApp:
         cm = confusion_matrix(y_test, y_pred)
         plt.figure(figsize=(10, 8))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-        plt.title('Confusion Matrix')
+        plt.title(f'Confusion Matrix (Metric: {self.distance_metric.get()}, K: {self.k_value.get()})')
         plt.xlabel('Predicted')
         plt.ylabel('Actual')
         plt.show()
@@ -86,4 +106,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
