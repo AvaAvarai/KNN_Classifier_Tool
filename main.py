@@ -13,7 +13,7 @@ class KNNApp:
     def __init__(self, master):
         self.master = master
         self.master.title("KNN Classifier Tool")
-        self.master.geometry("400x500")
+        self.master.geometry("400x550")
         self.center_window()
 
         self.file_path = tk.StringVar()
@@ -21,6 +21,7 @@ class KNNApp:
         self.distance_metric = tk.StringVar(value="euclidean")
         self.k_value = tk.IntVar(value=5)
         self.preprocessing = tk.StringVar(value="none")
+        self.p_value = tk.DoubleVar(value=2)  # Added p_value for Minkowski distance
 
         self.create_widgets()
 
@@ -42,12 +43,20 @@ class KNNApp:
         self.test_size_label.pack()
 
         ttk.Label(self.master, text="Distance Metric:").pack()
-        ttk.Combobox(self.master, textvariable=self.distance_metric, 
-                     values=["euclidean", "manhattan"]).pack()
+        self.metric_combobox = ttk.Combobox(self.master, textvariable=self.distance_metric, 
+                     values=["euclidean", "manhattan", "minkowski"])
+        self.metric_combobox.pack()
+        self.metric_combobox.bind("<<ComboboxSelected>>", self.on_metric_change)
 
         ttk.Label(self.master, text="K Value:").pack()
         ttk.Spinbox(self.master, from_=1, to=20, textvariable=self.k_value).pack()
 
+        self.p_value_frame = ttk.Frame(self.master)
+        self.p_value_frame.pack(pady=5)
+        ttk.Label(self.p_value_frame, text="P Value (for Minkowski):").pack(side=tk.LEFT)
+        self.p_value_spinbox = ttk.Spinbox(self.p_value_frame, from_=1, to=10, increment=0.1, textvariable=self.p_value, state="disabled")
+        self.p_value_spinbox.pack(side=tk.LEFT)
+        
         ttk.Label(self.master, text="Preprocessing:").pack()
         ttk.Combobox(self.master, textvariable=self.preprocessing, 
                      values=["none", "standard_scaler", "minmax_scaler"]).pack()
@@ -56,6 +65,12 @@ class KNNApp:
 
     def update_test_size(self, event):
         self.test_size_label.config(text=f"{self.test_size.get():.2f}")
+
+    def on_metric_change(self, event):
+        if self.distance_metric.get() == "minkowski":
+            self.p_value_spinbox.config(state="normal")
+        else:
+            self.p_value_spinbox.config(state="disabled")
 
     def load_data(self):
         file_path = filedialog.askopenfilename(filetypes=[("CSV Files", "*.csv")])
@@ -89,7 +104,15 @@ class KNNApp:
             X_train_processed = X_train
             X_test_processed = X_test
         
-        knn = KNeighborsClassifier(n_neighbors=self.k_value.get(), metric=self.distance_metric.get())
+        # Configure KNN classifier
+        knn_params = {
+            'n_neighbors': self.k_value.get(),
+            'metric': self.distance_metric.get()
+        }
+        if self.distance_metric.get() == "minkowski":
+            knn_params['p'] = self.p_value.get()
+        
+        knn = KNeighborsClassifier(**knn_params)
         knn.fit(X_train_processed, y_train)
         y_pred = knn.predict(X_test_processed)
         
@@ -100,6 +123,8 @@ class KNNApp:
         
         print(f"Preprocessing: {self.preprocessing.get()}")
         print(f"Distance Metric: {self.distance_metric.get()}")
+        if self.distance_metric.get() == "minkowski":
+            print(f"P Value: {self.p_value.get()}")
         print(f"K Value: {self.k_value.get()}")
         print(f"Accuracy: {accuracy:.4f}")
         print(f"Precision: {precision:.4f}")
@@ -109,7 +134,11 @@ class KNNApp:
         cm = confusion_matrix(y_test, y_pred)
         plt.figure(figsize=(5, 4))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-        plt.title(f'Confusion Matrix\n(Preprocessing: {self.preprocessing.get()},\nMetric: {self.distance_metric.get()}, K: {self.k_value.get()})')
+        title = f'Confusion Matrix\n(Preprocessing: {self.preprocessing.get()},\nMetric: {self.distance_metric.get()}'
+        if self.distance_metric.get() == "minkowski":
+            title += f', P: {self.p_value.get()}'
+        title += f', K: {self.k_value.get()})'
+        plt.title(title)
         plt.xlabel('Predicted')
         plt.ylabel('Actual')
         plt.tight_layout()
