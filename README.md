@@ -16,6 +16,7 @@ Menu screenshot:
   - Euclidean (L2 norm)
   - Manhattan (L1 norm)
   - Minkowski (with customizable p value, p=2 is euclidean, p=1 is manhattan)
+  - Dimension Insensitive Euclidean Metric (DIEM) [ArXiv](https://arxiv.org/abs/2407.08623)
 - Choose between different K values
 - View confusion matrix
 - View classification report (accuracy, precision, recall, F1 score)

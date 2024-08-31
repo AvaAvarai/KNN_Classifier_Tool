@@ -11,6 +11,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from pandas.plotting import parallel_coordinates
+from functools import partial
 
 class KNNApp:
     def __init__(self, master):
@@ -54,7 +55,7 @@ class KNNApp:
         # Distance metric selection
         ttk.Label(self.master, text="Distance Metric:").pack()
         self.metric_combobox = ttk.Combobox(self.master, textvariable=self.distance_metric, 
-                     values=["euclidean", "manhattan", "minkowski"])
+                     values=["euclidean", "manhattan", "minkowski", "diem"])
         self.metric_combobox.pack()
         self.metric_combobox.bind("<<ComboboxSelected>>", self.on_metric_change)
 
@@ -94,6 +95,34 @@ class KNNApp:
         if file_path:
             self.file_path.set(file_path)
             print(f"File selected: {file_path}")
+    
+    def diem_metric(self, x, y, v_M, v_m, sigma_n_squared, E_d_n):
+        """Calculate the DIEM metric between two points."""
+        # Calculate Euclidean distance
+        euclidean_dist = np.sqrt(np.sum((x - y) ** 2))
+        
+        # Calculate the DIEM metric
+        diem = ((v_M - v_m) / sigma_n_squared) * (euclidean_dist - E_d_n)
+        return diem
+
+    def compute_diem_parameters(self, X):
+        """
+        Compute the necessary parameters for DIEM:
+        v_M, v_m, sigma_n_squared, and E[d(n)]
+        based on the entire dataset X.
+        """
+        n = X.shape[1]
+        
+        # Calculate v_M and v_m based on the entire dataset
+        v_M = np.max(X)
+        v_m = np.min(X)
+        
+        # Estimate sigma(n)^2 and E[d(n)]
+        # These calculations might need to be fine-tuned based on your specific data
+        E_d_n = np.sqrt(n) * (v_M - v_m) / np.sqrt(6)  # Expected distance, this is an approximation
+        sigma_n_squared = n / 6  # Variance of Euclidean distances, this is an approximation
+        
+        return v_M, v_m, sigma_n_squared, E_d_n
 
     def run_knn(self):
         """Execute the KNN classification and display results."""
@@ -124,14 +153,21 @@ class KNNApp:
             X_train_processed = X_train
             X_test_processed = X_test
         
-        # Configure KNN classifier
-        knn_params = {
-            'n_neighbors': self.k_value.get(),
-            'metric': self.distance_metric.get()
-        }
-        if self.distance_metric.get() == "minkowski":
-            knn_params['p'] = self.p_value.get()
-        
+        # Precompute DIEM parameters if using DIEM metric
+        if self.distance_metric.get() == "diem":
+            v_M, v_m, sigma_n_squared, E_d_n = self.compute_diem_parameters(X_train)
+            knn_params = {
+                'n_neighbors': self.k_value.get(),
+                'metric': partial(self.diem_metric, v_M=v_M, v_m=v_m, sigma_n_squared=sigma_n_squared, E_d_n=E_d_n)
+            }
+        else:
+            knn_params = {
+                'n_neighbors': self.k_value.get(),
+                'metric': self.distance_metric.get()
+            }
+            if self.distance_metric.get() == "minkowski":
+                knn_params['p'] = self.p_value.get()
+
         # Train and predict
         knn = KNeighborsClassifier(**knn_params)
         knn.fit(X_train_processed, y_train)
@@ -174,21 +210,26 @@ class KNNApp:
         X_test_df['predicted'] = y_pred
 
         # Create color maps for actual classes and predictions
-        unique_classes = X_test_df['class'].unique()
+        unique_classes = np.unique(np.concatenate([y_test, y_pred]))
         class_colors = plt.cm.rainbow(np.linspace(0, 1, len(unique_classes)))
         class_color_map = dict(zip(unique_classes, class_colors))
         pred_colors = plt.cm.rainbow(np.linspace(0.1, 0.9, len(unique_classes)))
         pred_color_map = dict(zip(unique_classes, pred_colors))
 
         # Plot actual classes and predictions
-        parallel_coordinates(X_test_df.drop('predicted', axis=1), 'class', color=X_test_df['class'].map(class_color_map), alpha=0.5)
-        parallel_coordinates(X_test_df.drop('class', axis=1), 'predicted', color=X_test_df['predicted'].map(pred_color_map), alpha=0.5, linestyle='--')
+        for cls in unique_classes:
+            mask = X_test_df['class'] == cls
+            parallel_coordinates(X_test_df[mask].drop('predicted', axis=1), 'class', color=[class_color_map[cls]], alpha=0.5)
+            
+            mask = X_test_df['predicted'] == cls
+            parallel_coordinates(X_test_df[mask].drop('class', axis=1), 'predicted', color=[pred_color_map[cls]], alpha=0.5, linestyle='--')
 
         plt.title('Parallel Coordinates Plot\nSolid: Actual, Dashed: Predicted')
         plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
         plt.tight_layout()
         plt.show()
+
 
 def main():
     """Create and run the KNN Classifier Tool application."""
