@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -13,13 +13,14 @@ class KNNApp:
     def __init__(self, master):
         self.master = master
         self.master.title("KNN Classifier Tool")
-        self.master.geometry("400x400")
+        self.master.geometry("400x500")
         self.center_window()
 
         self.file_path = tk.StringVar()
         self.test_size = tk.DoubleVar(value=0.2)
         self.distance_metric = tk.StringVar(value="euclidean")
         self.k_value = tk.IntVar(value=5)
+        self.preprocessing = tk.StringVar(value="none")
 
         self.create_widgets()
 
@@ -47,6 +48,10 @@ class KNNApp:
         ttk.Label(self.master, text="K Value:").pack()
         ttk.Spinbox(self.master, from_=1, to=20, textvariable=self.k_value).pack()
 
+        ttk.Label(self.master, text="Preprocessing:").pack()
+        ttk.Combobox(self.master, textvariable=self.preprocessing, 
+                     values=["none", "standard_scaler", "minmax_scaler"]).pack()
+
         ttk.Button(self.master, text="Run KNN", command=self.run_knn).pack(pady=10)
 
     def update_test_size(self, event):
@@ -71,19 +76,29 @@ class KNNApp:
         test_size = self.test_size.get()
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=42)
         
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train)
-        X_test_scaled = scaler.transform(X_test)
+        # Apply preprocessing
+        if self.preprocessing.get() == "standard_scaler":
+            scaler = StandardScaler()
+            X_train_processed = scaler.fit_transform(X_train)
+            X_test_processed = scaler.transform(X_test)
+        elif self.preprocessing.get() == "minmax_scaler":
+            scaler = MinMaxScaler()
+            X_train_processed = scaler.fit_transform(X_train)
+            X_test_processed = scaler.transform(X_test)
+        else:  # No preprocessing
+            X_train_processed = X_train
+            X_test_processed = X_test
         
         knn = KNeighborsClassifier(n_neighbors=self.k_value.get(), metric=self.distance_metric.get())
-        knn.fit(X_train_scaled, y_train)
-        y_pred = knn.predict(X_test_scaled)
+        knn.fit(X_train_processed, y_train)
+        y_pred = knn.predict(X_test_processed)
         
         accuracy = accuracy_score(y_test, y_pred)
         precision = precision_score(y_test, y_pred, average='weighted')
         recall = recall_score(y_test, y_pred, average='weighted')
         f1 = f1_score(y_test, y_pred, average='weighted')
         
+        print(f"Preprocessing: {self.preprocessing.get()}")
         print(f"Distance Metric: {self.distance_metric.get()}")
         print(f"K Value: {self.k_value.get()}")
         print(f"Accuracy: {accuracy:.4f}")
@@ -92,11 +107,12 @@ class KNNApp:
         print(f"F1 Score: {f1:.4f}")
         
         cm = confusion_matrix(y_test, y_pred)
-        plt.figure(figsize=(10, 8))
+        plt.figure(figsize=(5, 4))
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
-        plt.title(f'Confusion Matrix (Metric: {self.distance_metric.get()}, K: {self.k_value.get()})')
+        plt.title(f'Confusion Matrix\n(Preprocessing: {self.preprocessing.get()},\nMetric: {self.distance_metric.get()}, K: {self.k_value.get()})')
         plt.xlabel('Predicted')
         plt.ylabel('Actual')
+        plt.tight_layout()
         plt.show()
 
 def main():
