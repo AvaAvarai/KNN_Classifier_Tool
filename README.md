@@ -2,6 +2,9 @@
 
 Tool to test KNN classification algorithm with different K values, distance metrics, preprocessing steps, and training splits.
 
+Menu screenshot:
+![Menu Screenshot](./images/menu.png)
+
 ## Features
 
 - Load data from CSV file
