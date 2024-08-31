@@ -27,6 +27,12 @@ The data should be in a CSV file with the target variable in a column named 'cla
 pip install -r requirements.txt
 ```
 
+## Usage
+
+```bash
+python main.py
+```
+
 ## License
 
 This project is licensed under the MIT License. See the LICENSE file for details.

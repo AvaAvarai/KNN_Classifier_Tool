@@ -8,6 +8,8 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+from pandas.plotting import parallel_coordinates
 
 class KNNApp:
     def __init__(self, master):
@@ -132,7 +134,8 @@ class KNNApp:
         print(f"F1 Score: {f1:.4f}")
         
         cm = confusion_matrix(y_test, y_pred)
-        plt.figure(figsize=(5, 4))
+        plt.figure(figsize=(10, 4))
+        plt.subplot(121)
         sns.heatmap(cm, annot=True, fmt='d', cmap='Blues')
         title = f'Confusion Matrix\n(Preprocessing: {self.preprocessing.get()},\nMetric: {self.distance_metric.get()}'
         if self.distance_metric.get() == "minkowski":
@@ -141,6 +144,31 @@ class KNNApp:
         plt.title(title)
         plt.xlabel('Predicted')
         plt.ylabel('Actual')
+
+        # Parallel coordinates plot
+        plt.subplot(122)
+        X_test_df = pd.DataFrame(X_test_processed, columns=X.columns)
+        X_test_df['class'] = y_test
+        X_test_df['predicted'] = y_pred
+
+        # Create a color map for actual classes
+        unique_classes = X_test_df['class'].unique()
+        class_colors = plt.cm.rainbow(np.linspace(0, 1, len(unique_classes)))
+        class_color_map = dict(zip(unique_classes, class_colors))
+
+        # Create a color map for predictions (slightly different shades)
+        pred_colors = plt.cm.rainbow(np.linspace(0.1, 0.9, len(unique_classes)))
+        pred_color_map = dict(zip(unique_classes, pred_colors))
+
+        # Plot actual classes
+        parallel_coordinates(X_test_df.drop('predicted', axis=1), 'class', color=X_test_df['class'].map(class_color_map), alpha=0.5)
+
+        # Plot predictions
+        parallel_coordinates(X_test_df.drop('class', axis=1), 'predicted', color=X_test_df['predicted'].map(pred_color_map), alpha=0.5, linestyle='--')
+
+        plt.title('Parallel Coordinates Plot\nSolid: Actual, Dashed: Predicted')
+        plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
         plt.tight_layout()
         plt.show()
 
